@@ -1,7 +1,12 @@
 """Dựng video dọc 1080x1920 từ product.json + script_<nền tảng>.json.
 
-Mỗi câu thoại là một cảnh: ảnh sản phẩm (nền mờ + ảnh chính), giá, phụ đề câu đó,
-chuyển động zoom nhẹ. Các cảnh được nối lại, ghép giọng đọc và nhạc nền (nếu có).
+Mỗi câu thoại là một cảnh. Có hai engine dựng hình (chọn bằng VIDEO_ENGINE hoặc --engine):
+
+- ffmpeg      : (mặc định) ảnh sản phẩm (nền mờ + ảnh chính), giá, phụ đề, zoom nhẹ. Chỉ cần ffmpeg.
+- hyperframes : motion graphics HTML + GSAP (chữ bật, thẻ tính năng, giá nhấp nháy...). Cần Node.js.
+                Xem agent/motion.py.
+
+Hai engine dùng chung giọng đọc, nhạc nền, phụ đề .srt, caption và meta.json.
 """
 from __future__ import annotations
 
@@ -13,12 +18,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 from . import tts
-from .config import MUSIC_DIR, OUTPUT_DIR, brand, font
+from .config import MUSIC_DIR, OUTPUT_DIR, brand, env, font
 from .product import load as load_product, workdir
 
 W, H, FPS = 1080, 1920, 30
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_SECONDS = {"facebook": 40, "tiktok": 30}  # khớp mục "Kịch bản" trong CLAUDE.md
+ENGINES = ("ffmpeg", "hyperframes")
 
 
 class RenderError(RuntimeError):
@@ -183,7 +189,10 @@ def _pick_music(b: dict) -> Path | None:
 
 # ---------- chính ----------
 
-def render(slug: str, platform: str, provider: str | None = None) -> Path:
+def render(slug: str, platform: str, provider: str | None = None, engine: str | None = None) -> Path:
+    engine = (engine or env("VIDEO_ENGINE", "ffmpeg")).lower()
+    if engine not in ENGINES:
+        raise RenderError(f"VIDEO_ENGINE không hợp lệ: {engine}. Dùng: {', '.join(ENGINES)}")
     folder = workdir(slug)
     product = load_product(slug)
     script_path = folder / f"script_{platform}.json"
@@ -204,37 +213,49 @@ def render(slug: str, platform: str, provider: str | None = None) -> Path:
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir(parents=True)
 
-    segs, pads, srt, t = [], [], [], 0.0
-    base_cache: dict[tuple, Path] = {}
+    # 1) giọng đọc từng câu (dùng chung cho cả hai engine)
+    pads, srt, durations, t = [], [], [], 0.0
     for i, line in enumerate(lines):
         wav = tmp / f"voice_{i:02}.wav"
         spoken = tts.synthesize(line, wav, provider)
         dur = spoken + (0.8 if i == len(lines) - 1 else 0.25)
-
         padded = tmp / f"voicepad_{i:02}.wav"
         _run(["-i", str(wav), "-af", f"apad=whole_dur={dur:.3f}", "-t", f"{dur:.3f}", "-ar", "44100", "-ac", "1", str(padded)])
         pads.append(padded)
-
-        img = images[i % len(images)]
-        hook = script.get("hook") if i == 0 else None
-        key = (img, hook)
-        if key not in base_cache:
-            p = tmp / f"base_{len(base_cache):02}.png"
-            compose_base(img, b, price, hook).save(p)
-            base_cache[key] = p
-        cap = tmp / f"cap_{i:02}.png"
-        caption_png(line, b).save(cap)
-
-        seg = tmp / f"seg_{i:02}.mp4"
-        _segment(base_cache[key], cap, dur, zoom_in=(i % 2 == 0), out=seg)
-        segs.append(seg)
+        durations.append(dur)
         srt.append(f"{i + 1}\n{_srt_time(t)} --> {_srt_time(t + spoken)}\n{line}\n")
         t += dur
 
     video = tmp / "video.mp4"
     voice = tmp / "voice.wav"
-    _concat(segs, video)
     _concat(pads, voice)
+
+    # 2) hình ảnh
+    cover_img: Image.Image | None = None
+    if engine == "hyperframes":
+        from . import motion
+        motion.render_video(product=product, script=script, lines=lines, durations=durations,
+                            images=images, brand=b, price_text=price, platform=platform,
+                            build_dir=tmp / "motion", out=video)
+    else:
+        segs = []
+        base_cache: dict[tuple, Path] = {}
+        for i, line in enumerate(lines):
+            img = images[i % len(images)]
+            hook = script.get("hook") if i == 0 else None
+            key = (img, hook)
+            if key not in base_cache:
+                p = tmp / f"base_{len(base_cache):02}.png"
+                compose_base(img, b, price, hook).save(p)
+                base_cache[key] = p
+            cap = tmp / f"cap_{i:02}.png"
+            caption_png(line, b).save(cap)
+            seg = tmp / f"seg_{i:02}.mp4"
+            _segment(base_cache[key], cap, durations[i], zoom_in=(i % 2 == 0), out=seg)
+            segs.append(seg)
+        _concat(segs, video)
+        # ảnh bìa = cảnh đầu có câu móc
+        cover_img = Image.open(base_cache[(images[0], script.get("hook"))]).convert("RGB")
 
     out_dir = OUTPUT_DIR / slug / platform
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -255,9 +276,11 @@ def render(slug: str, platform: str, provider: str | None = None) -> Path:
         _run(["-i", str(video), "-i", str(voice), "-map", "0:v", "-map", "1:a", "-c:v", "copy",
               "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(final)])
 
-    # ảnh bìa = cảnh đầu có câu móc
-    first_base = base_cache[(images[0], script.get("hook"))]
-    Image.open(first_base).convert("RGB").save(out_dir / "cover.jpg", quality=90)
+    if cover_img is not None:
+        cover_img.save(out_dir / "cover.jpg", quality=90)
+    else:  # motion: lấy khung hình lúc câu móc đã hiện đủ
+        _run(["-ss", f"{min(1.6, durations[0] * 0.85):.2f}", "-i", str(final), "-frames:v", "1", "-q:v", "2",
+              str(out_dir / "cover.jpg")])
     (out_dir / "subtitles.srt").write_text("\n".join(srt), encoding="utf-8")
 
     tags = " ".join(script.get("hashtags", []))
@@ -274,6 +297,7 @@ def render(slug: str, platform: str, provider: str | None = None) -> Path:
 
     meta = {"slug": slug, "platform": platform, "seconds": round(t, 1), "scenes": len(lines),
             "music": music.name if music else None, "tts": provider or "mặc định trong .env",
+            "engine": engine,
             "warnings": warnings}
     (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     shutil.rmtree(tmp, ignore_errors=True)

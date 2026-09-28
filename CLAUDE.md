@@ -13,6 +13,7 @@ Bạn là agent vận hành kênh tiếp thị liên kết (affiliate) cho chủ
 | `output/<slug>/<nền tảng>/` | `video.mp4`, `cover.jpg`, `caption.txt`, `subtitles.srt`, `meta.json` |
 | `brand/brand.json` | Tên kênh, màu, câu khai báo affiliate, nhạc nền |
 | `assets/music/` | Nhạc nền được phép dùng (chủ dự án tự đặt vào) |
+| `agent/motion_templates/` | Giao diện video motion graphics (HTML/CSS/GSAP) cho engine `hyperframes` |
 | `.env` | Khóa API và chế độ duyệt. **Không bao giờ đọc, in ra hay sửa file này.** |
 | `env.backup` | Bản sao lưu `.env` do chủ dự án tạo bằng `scripts/sao_luu_env.ps1`. Quy tắc như `.env`. |
 
@@ -24,8 +25,12 @@ python -m agent queue add <link> --note "<ghi chú>"
 python -m agent queue list --status moi
 python -m agent queue set <id> <trạng thái> --note "<ghi chú agent>" --slug <slug>
 python -m agent fetch <link> [--slug <slug>]
-python -m agent render <slug> --platform facebook|tiktok|both [--tts edge|elevenlabs|fpt|silent]
+python -m agent render <slug> --platform facebook|tiktok|both [--tts edge|elevenlabs|fpt|silent] [--engine ffmpeg|hyperframes]
+python -m agent deals [--keyword "<từ khóa>"]... [--sort ban-chay|hoa-hong|lien-quan] [--top 5] [--add]
 ```
+
+- `--engine` bỏ trống thì dùng `VIDEO_ENGINE` trong `.env` (mặc định `ffmpeg`). `hyperframes` đẹp hơn (chữ bật, thẻ tính năng, giá nhấp nháy, phụ đề sáng theo từng chữ) nhưng cần Node.js và dựng chậm hơn (khoảng 1–2 phút/video).
+- `deals` cần Shopee Open API. Không có `--keyword` thì dùng `deal_keywords` trong `brand.json`; vẫn trống thì lấy danh sách "hiệu quả" của Shopee. Lệnh tự loại sản phẩm đánh giá < 4.5, bán < 50, tên có từ thuộc nhóm cấm, và link đã có trong hàng đợi.
 
 Lệnh in `LỖI: ...` khi thất bại. Đọc lỗi, sửa nguyên nhân nếu nằm trong phạm vi của bạn, nếu không thì ghi vào hàng đợi (`loi`) và báo chủ dự án.
 
@@ -42,6 +47,13 @@ Lệnh in `LỖI: ...` khi thất bại. Đọc lỗi, sửa nguyên nhân nếu
 6. Gọi subagent `kiem-duyet` kiểm tra hai kịch bản. Sửa đến khi đạt.
 7. `render <slug> --platform both`. Xem `meta.json`; nếu `warnings` không rỗng (video quá dài) thì rút gọn và dựng lại.
 8. Chuyển trạng thái theo `APPROVAL_MODE` (mục "Duyệt và đăng").
+
+## Tìm deal (khi chủ dự án nhờ hoặc hàng đợi trống)
+
+1. `python -m agent deals --top 5` (hoặc kèm `--keyword`). Đọc kết quả `de_xuat`.
+2. Tự xem lại từng sản phẩm: bỏ những cái rõ ràng thuộc nhóm cấm/nhạy cảm mà bộ lọc từ khóa bỏ sót, hoặc không hợp ngách kênh.
+3. Thêm những cái còn lại: chạy lại với `--add`, hoặc `queue add <url> --note "<ghi chú>"` cho từng cái.
+4. Không tự tìm deal bằng cách khác (đăng nhập Shopee, cào trang, cookie).
 
 ## Kịch bản
 
@@ -63,6 +75,32 @@ Lệnh in `LỖI: ...` khi thất bại. Đọc lỗi, sửa nguyên nhân nếu
 - TikTok: 3–6 câu, 15–30 giây, nhịp nhanh hơn, câu đầu vào thẳng vấn đề. Câu cuối: khi `TIKTOK_HAS_CART=false` → "link ở bio"; khi `true` → "bấm giỏ hàng bên dưới".
 - Viết 3 phương án câu móc, chọn 1 cho `hook`, ghi 2 phương án còn lại vào `agent_note` của hàng đợi để thử sau.
 - Hashtag: 3–6 cái, lấy xu hướng từ vidIQ nếu kết nối có sẵn.
+
+### `visuals` (không bắt buộc, chỉ dùng khi engine là `hyperframes`)
+
+Mảng dài bằng `lines`, mỗi phần tử chọn kiểu cảnh cho câu thoại cùng vị trí; để `null` thì tự chọn
+(câu đầu `hook`, câu cuối `outro`, ở giữa `product` / `features` / `price`). Chỉ viết `visuals` khi muốn đổi cách tự chọn.
+
+```json
+"visuals": [
+  null,
+  {"template": "features", "title": "Điểm nổi bật", "bullets": ["Inox 2 lớp", "Nắp chống tràn"]},
+  {"template": "price", "value": "Chỉ 89.000đ", "old": "129.000đ", "badge": "-31%"},
+  {"template": "callout", "statement": "Dung tích 750 ml", "tag": "Theo mô tả shop"},
+  null
+]
+```
+
+| template | Trường | Mặc định |
+| --- | --- | --- |
+| `hook` | `headline` | `hook` của kịch bản |
+| `product` | (không có) | ảnh sản phẩm + giá |
+| `features` | `title`, `bullets` (≤ 4) | "Điểm nổi bật", `features` trong product.json |
+| `price` | `value`, `old`, `badge`, `note` | `price_text`; `price_before_text`, `discount_rate` trong product.json nếu có |
+| `callout` | `statement`, `tag` | câu thoại |
+| `outro` | `cta` | theo nền tảng như câu cuối ở trên |
+
+Chữ trong `visuals` cũng phải theo đúng "Quy tắc bắt buộc": `bullets`, `old`, `badge` chỉ lấy từ product.json hoặc ảnh.
 
 ## Quy tắc bắt buộc (không có ngoại lệ)
 
@@ -99,4 +137,5 @@ Dùng Metricool (`getAnalyticsDataByMetrics`) lấy lượt xem, tỷ lệ xem, 
 - Đọc, in, sửa `.env` / `env.backup` hay đưa khóa API vào bất kỳ file nào khác.
 - Đăng bài khi chế độ duyệt chưa cho phép.
 - Đăng nhập tài khoản bằng mật khẩu, mua follower, tự bình luận bằng tài khoản ảo.
+- Tự tham gia, đăng bài hay trả lời câu hỏi duyệt trong group Facebook; nhắn tin hàng loạt.
 - Xóa thư mục `work/` hoặc `output/` của sản phẩm đã đăng.

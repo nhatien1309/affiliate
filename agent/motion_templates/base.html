@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080, height=1920">
+  <title>video</title>
+  <script src="gsap.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <style>{{CSS_VARS}}</style>
+</head>
+<body>
+  <div id="stage"
+       data-composition-id="main"
+       data-width="1080"
+       data-height="1920"
+       data-start="0"
+       data-duration="{{TOTAL}}">
+
+    <!-- khung cố định: nền, tên kênh, nhãn tiếp thị liên kết -->
+    <div class="shell-bg"></div>
+    <div class="shell-glow"></div>
+    <div class="shell-handle">{{HANDLE}}</div>
+    <div class="shell-tag">{{TAG}}</div>
+
+{{SCENES}}
+  </div>
+  <script src="animations.js"></script>
+</body>
+</html>
