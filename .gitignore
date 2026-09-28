@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+work/*
+!work/demo-binh-giu-nhiet/
+output/
+queue.csv
+logs/
+assets/music/*
+!assets/music/README.md

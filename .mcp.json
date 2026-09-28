@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "metricool": {
+      "type": "http",
+      "url": "https://ai.metricool.com/mcp"
+    },
+    "vidiq": {
+      "type": "http",
+      "url": "https://mcp.vidiq.com/mcp"
+    }
+  }
+}

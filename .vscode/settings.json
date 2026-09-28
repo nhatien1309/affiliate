@@ -1,0 +1,5 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
+  "files.associations": { "*.csv": "csv" },
+  "files.exclude": { "**/__pycache__": true }
+}

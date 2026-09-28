@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m agent:*)",
+      "Bash(python3 -m agent:*)",
+      "Bash(python -c:*)",
+      "Bash(ffprobe:*)",
+      "Read",
+      "Edit",
+      "Write",
+      "WebSearch",
+      "mcp__metricool",
+      "mcp__vidiq"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Write(./.env)"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}
