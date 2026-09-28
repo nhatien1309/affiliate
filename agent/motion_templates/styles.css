@@ -1,0 +1,140 @@
+/* Video sản phẩm dọc 1080x1920. Màu lấy từ brand.json qua biến --accent, --price-bg...
+   Vùng an toàn: tránh ~200px trên cùng (thanh trạng thái), ~380px dưới cùng và ~140px bên phải
+   (nút thả tim, bình luận, caption của TikTok/Reels). */
+
+@font-face { font-family: "BVP"; font-weight: 400; src: url("BeVietnamPro-Regular.ttf"); }
+@font-face { font-family: "BVP"; font-weight: 700; src: url("BeVietnamPro-Bold.ttf"); }
+@font-face { font-family: "BVP"; font-weight: 800; src: url("BeVietnamPro-ExtraBold.ttf"); }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0d1413; font-family: "BVP", sans-serif; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+
+/* ---------- khung cố định ---------- */
+.shell-bg {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 70% at 50% 35%, color-mix(in srgb, var(--accent) 55%, #0d1413) 0%, #0d1413 70%);
+}
+.shell-glow {
+  position: absolute; width: 900px; height: 900px; left: 90px; top: 420px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent) 0%, transparent 70%);
+  opacity: .55;
+}
+.shell-handle {
+  position: absolute; top: 150px; left: 60px; z-index: 40;
+  padding: 12px 26px; border-radius: 999px; background: rgba(0,0,0,.45);
+  color: #fff; font-weight: 700; font-size: 34px;
+}
+.shell-tag {
+  position: absolute; top: 158px; right: 60px; z-index: 40;
+  padding: 8px 18px; border-radius: 10px; background: rgba(255,255,255,.14);
+  color: rgba(255,255,255,.85); font-weight: 400; font-size: 24px;
+}
+
+/* ---------- cảnh ---------- */
+.scene { position: absolute; inset: 0; opacity: 0; z-index: 10; }
+
+.bg-photo { position: absolute; inset: -60px; background-size: cover; background-position: center; filter: blur(38px); }
+.bg-dim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.35) 45%, rgba(0,0,0,.7) 100%); }
+
+.card {
+  position: absolute; left: 50%; top: 520px; width: 760px; height: 760px; margin-left: -380px;
+  background: #fff; border-radius: 44px; overflow: hidden;
+  box-shadow: 0 40px 90px rgba(0,0,0,.45);
+}
+.card-lg { top: 330px; width: 880px; height: 960px; margin-left: -440px; }
+.card img { width: 100%; height: 100%; object-fit: contain; }
+
+.thumb {
+  position: absolute; left: 50%; top: 250px; width: 300px; height: 300px; margin-left: -150px;
+  background: #fff; border-radius: 32px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.4);
+}
+.thumb-lg { top: 260px; width: 520px; height: 520px; margin-left: -260px; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+.hook-headline {
+  position: absolute; top: 250px; left: 70px; right: 70px; text-align: center;
+  color: #fff; font-weight: 800; font-size: 88px; line-height: 1.12;
+  text-shadow: 0 6px 24px rgba(0,0,0,.55);
+}
+
+.price-pill {
+  position: absolute; left: 50%; top: 1310px; transform: translateX(-50%);
+  padding: 18px 54px; border-radius: 999px; white-space: nowrap;
+  background: var(--price-bg); color: var(--price-text); font-weight: 800; font-size: 64px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.35);
+}
+
+/* features */
+.feat-card {
+  position: absolute; left: 70px; right: 70px; top: 610px;
+  padding: 50px 56px 36px; border-radius: 40px;
+  background: rgba(255,255,255,.96); box-shadow: 0 30px 80px rgba(0,0,0,.4);
+}
+.feat-title { font-weight: 800; font-size: 60px; color: #16201e; }
+.feat-rule { height: 8px; width: 180px; border-radius: 4px; background: var(--accent); margin: 18px 0 30px; transform-origin: left center; }
+.feat { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 26px; }
+.feat-dot {
+  flex: none; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-text);
+  font-weight: 800; font-size: 34px; line-height: 56px; text-align: center;
+}
+.feat-text { font-weight: 700; font-size: 42px; line-height: 1.25; color: #16201e; }
+
+/* price */
+.price-block { position: absolute; left: 60px; right: 60px; top: 840px; text-align: center; }
+.price-old { color: rgba(255,255,255,.7); font-weight: 700; font-size: 56px; text-decoration: line-through; margin-bottom: 8px; }
+.price-big {
+  display: inline-block; padding: 20px 60px; border-radius: 36px;
+  background: var(--price-bg); color: var(--price-text); font-weight: 800; font-size: 112px; line-height: 1.1;
+  white-space: nowrap; max-width: 960px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.4);
+}
+.price-badge {
+  display: inline-block; margin-top: 28px; padding: 10px 30px; border-radius: 16px;
+  background: #e11d48; color: #fff; font-weight: 800; font-size: 54px;
+}
+.price-note { margin-top: 26px; color: rgba(255,255,255,.75); font-size: 30px; }
+
+/* callout */
+.callout-card {
+  position: absolute; left: 80px; right: 80px; top: 680px; padding: 60px 56px; border-radius: 40px;
+  background: var(--accent); color: var(--accent-text); box-shadow: 0 30px 80px rgba(0,0,0,.4);
+}
+.callout-tag { display: inline-block; margin-bottom: 20px; padding: 6px 20px; border-radius: 12px; background: rgba(0,0,0,.25); font-weight: 700; font-size: 30px; }
+.callout-text { font-weight: 800; font-size: 66px; line-height: 1.2; }
+
+/* outro */
+.outro { position: absolute; left: 60px; right: 60px; top: 640px; text-align: center; }
+.outro-cta {
+  display: inline-block; padding: 28px 56px; border-radius: 36px;
+  background: var(--price-bg); color: var(--price-text); font-weight: 800; font-size: 72px; line-height: 1.15;
+}
+.outro-arrow { margin-top: 20px; color: #fff; font-weight: 800; font-size: 110px; line-height: 1; }
+.follow-card {
+  display: inline-flex; align-items: center; gap: 26px; margin-top: 40px;
+  padding: 22px 30px; border-radius: 28px; background: rgba(255,255,255,.95);
+}
+.follow-avatar {
+  width: 88px; height: 88px; border-radius: 50%; background: var(--accent); color: var(--accent-text);
+  font-weight: 800; font-size: 46px; line-height: 88px; text-align: center;
+}
+.follow-name { font-weight: 800; font-size: 40px; color: #16201e; }
+.follow-btn { position: relative; width: 250px; height: 70px; border-radius: 14px; background: #fe2c55; overflow: hidden; }
+.follow-btn span { position: absolute; inset: 0; color: #fff; font-weight: 700; font-size: 32px; line-height: 70px; text-align: center; }
+.fb-done { opacity: 0; background: #6b7280; }
+
+/* phụ đề: hiện từng chữ theo giọng đọc */
+.sub { position: absolute; left: 70px; right: 150px; top: 1440px; height: 250px; display: flex; align-items: center; justify-content: center; z-index: 30; }
+.sub-inner {
+  text-align: center; font-weight: 800; font-size: 58px; line-height: 1.22;
+  color: var(--sub-color); -webkit-text-stroke: 10px var(--sub-stroke); paint-order: stroke fill;
+}
+.sub .w { opacity: .28; }
+
+/* ánh sáng lướt qua chữ */
+.shine { position: relative; overflow: hidden; }
+.shine .shine-mask {
+  position: absolute; top: 0; bottom: 0; left: -50%; width: 40%; pointer-events: none; opacity: 0;
+  background: linear-gradient(110deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.55) 50%, rgba(255,255,255,0) 100%);
+}

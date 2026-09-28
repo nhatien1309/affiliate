@@ -6,6 +6,8 @@
   python -m agent queue set <id> <trạng thái> [--note ..] [--slug ..]
   python -m agent fetch <link> [--slug ..]      tạo work/<slug>/ với product.json và ảnh
   python -m agent render <slug> [--platform facebook|tiktok|both] [--tts edge|elevenlabs|fpt|silent]
+                         [--engine ffmpeg|hyperframes]
+  python -m agent deals [--keyword ..] [--sort ..] [--top 5] [--add]   tìm deal Shopee qua Open API
 """
 from __future__ import annotations
 
@@ -48,6 +50,11 @@ def cmd_doctor(_args) -> int:
         check("ELEVENLABS_VOICE_ID", bool(env("ELEVENLABS_VOICE_ID")), "điền vào .env")
     elif provider == "fpt":
         check("FPT_API_KEY", bool(env("FPT_API_KEY")), "điền vào .env")
+    engine = env("VIDEO_ENGINE", "ffmpeg")
+    print(f"  Engine dựng hình: {engine}")
+    if engine == "hyperframes":
+        check("Node.js (npx)", bool(shutil.which("npx") or shutil.which("npx.cmd")),
+              "cài Node.js LTS (xem README) hoặc đặt VIDEO_ENGINE=ffmpeg")
     has_shopee = bool(env("SHOPEE_APP_ID") and env("SHOPEE_SECRET"))
     print("  Shopee Open API: " + ("đã cấu hình" if has_shopee else "chưa có (vẫn chạy được, nhập tay link affiliate)"))
     print("Kết quả: " + ("sẵn sàng" if ok else "cần bổ sung các mục THIẾU"))
@@ -81,8 +88,37 @@ def cmd_render(args) -> int:
     from .render import render
     platforms = ["facebook", "tiktok"] if args.platform == "both" else [args.platform]
     for p in platforms:
-        out = render(args.slug, p, args.tts)
+        out = render(args.slug, p, args.tts, args.engine)
         print(f"Xong {p}: {out}")
+    return 0
+
+
+def cmd_deals(args) -> int:
+    from . import deals
+    from .config import brand
+    keywords = args.keyword or brand().get("deal_keywords") or [None]
+    ok_all, skipped_all = [], []
+    for kw in keywords:
+        nodes = deals.search(kw, sort=args.sort, list_type=args.list, limit=args.limit)
+        ok, skipped = deals.rank(nodes, min_rating=args.min_rating, min_sales=args.min_sales)
+        for r in ok + skipped:
+            r["keyword"] = kw or f"(danh sách {args.list or 'hieu-qua'})"
+        ok_all += ok
+        skipped_all += skipped
+    seen, top = set(), []
+    for r in sorted(ok_all, key=lambda r: r["score"], reverse=True):
+        if r["url"] not in seen:
+            seen.add(r["url"])
+            top.append(r)
+    top = top[: args.top]
+    result = {"de_xuat": top, "bi_loai": len(skipped_all),
+              "ly_do_loai": sorted({r["reason"].split(" (")[0].split(" <")[0] for r in skipped_all})}
+    if args.add:
+        added = []
+        for r in top:
+            added += deals.add_to_queue([r], None if r["keyword"].startswith("(") else r["keyword"])
+        result["da_them_vao_hang_doi"] = [a["id"] for a in added]
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -110,7 +146,19 @@ def main(argv=None) -> int:
     r.add_argument("slug")
     r.add_argument("--platform", default="both", choices=["facebook", "tiktok", "both"])
     r.add_argument("--tts", choices=["edge", "elevenlabs", "fpt", "silent"])
+    r.add_argument("--engine", choices=["ffmpeg", "hyperframes"], help="mặc định: VIDEO_ENGINE trong .env")
     r.set_defaults(func=cmd_render)
+
+    d = sub.add_parser("deals", help="tìm deal Shopee qua Open API")
+    d.add_argument("--keyword", action="append", help="từ khóa, lặp lại được. Mặc định: deal_keywords trong brand.json")
+    d.add_argument("--sort", default="ban-chay", choices=["ban-chay", "hoa-hong", "lien-quan"])
+    d.add_argument("--list", choices=["hieu-qua", "hoa-hong-cao", "goi-y"], help="khi không có từ khóa")
+    d.add_argument("--limit", type=int, default=50, help="số sản phẩm lấy về mỗi từ khóa")
+    d.add_argument("--top", type=int, default=5)
+    d.add_argument("--min-rating", type=float, default=4.5)
+    d.add_argument("--min-sales", type=int, default=50)
+    d.add_argument("--add", action="store_true", help="thêm các deal đề xuất vào queue.csv")
+    d.set_defaults(func=cmd_deals)
 
     args = parser.parse_args(argv)
     if args.cmd == "queue":

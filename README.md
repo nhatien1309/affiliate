@@ -20,6 +20,7 @@ Mở **PowerShell** và chạy lần lượt:
 winget install Microsoft.VisualStudioCode
 winget install Python.Python.3.12
 winget install Gyan.FFmpeg
+winget install OpenJS.NodeJS.LTS   # chỉ cần nếu dùng engine hyperframes (mục 5)
 irm https://claude.ai/install.ps1 | iex
 ```
 
@@ -29,6 +30,7 @@ irm https://claude.ai/install.ps1 | iex
 
 ```bash
 brew install python ffmpeg
+brew install node   # chỉ cần nếu dùng engine hyperframes (mục 5)
 brew install --cask visual-studio-code
 curl -fsSL https://claude.ai/install.sh | bash
 ```
@@ -56,6 +58,12 @@ python -m agent render demo-binh-giu-nhiet --platform facebook --tts silent
 
 Video nằm ở `output/demo-binh-giu-nhiet/facebook/video.mp4`. Bỏ `--tts silent` để nghe giọng đọc miễn phí (edge).
 
+Thử bản motion graphics (cần Node.js, lần đầu mất vài phút để tải HyperFrames và Chrome):
+
+```powershell
+python -m agent render demo-binh-giu-nhiet --platform facebook --tts silent --engine hyperframes
+```
+
 6. Mở khung **Claude Code** trong VS Code, đăng nhập tài khoản Claude, gõ `/mcp` → chọn **metricool** → đăng nhập trên trình duyệt. Làm tương tự với **vidiq** nếu bạn có tài khoản vidIQ. Trước đó, trong Metricool, nối Fanpage và tài khoản TikTok của bạn.
 
 ## 2. Khóa API trong `.env`
@@ -66,6 +74,7 @@ Video nằm ở `output/demo-binh-giu-nhiet/facebook/video.mp4`. Bỏ `--tts sil
 | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Nếu dùng ElevenLabs | elevenlabs.io → Profile → API Keys; Voice ID trong Voice Library |
 | `FPT_API_KEY` | Nếu dùng FPT.AI | console.fpt.ai → Text to Speech |
 | `SHOPEE_APP_ID`, `SHOPEE_SECRET` | Không | affiliate.shopee.vn → Open API (cần được Shopee duyệt) |
+| `VIDEO_ENGINE` | Có | `ffmpeg` (mặc định) hoặc `hyperframes` (mục 5) |
 | `APPROVAL_MODE` | Có | Giữ `duyet_tung_video` trong tháng đầu |
 | `TIKTOK_HAS_CART` | Có | Đổi `true` khi TikTok cho gắn giỏ hàng (mốc 1.000 follower) |
 
@@ -79,6 +88,7 @@ Chưa có Shopee Open API vẫn chạy được: tạo link affiliate trên affi
 | Lệnh | Làm gì |
 | --- | --- |
 | `/them-link <link> [ghi chú]` | Thêm sản phẩm vào hàng đợi |
+| `/tim-deal [từ khóa] [số lượng]` | Tìm sản phẩm Shopee bán chạy, hoa hồng tốt, đã lọc nhóm cấm, rồi thêm vào hàng đợi (cần Shopee Open API) |
 | `/lam-video <link hoặc id>` | Làm trọn một sản phẩm: dữ liệu → kịch bản → kiểm duyệt → video |
 | `/chay-hang-ngay` | Xử lý các link mới trong hàng đợi (tối đa `MAX_PER_DAY`) |
 | `/duyet <slug> [facebook\|tiktok\|both] [giờ]` | Duyệt video và cho lên lịch đăng |
@@ -103,20 +113,40 @@ Máy tính phải bật và đã đăng nhập vào giờ chạy. Mỗi lần ch
 **macOS – cron**: `crontab -e`, thêm dòng
 `15 8 * * * /đường/dẫn/affiliate-agent/scripts/run_daily.sh`
 
-## 5. Tùy chỉnh
+## 5. Hai kiểu dựng video
+
+| | `ffmpeg` (mặc định) | `hyperframes` |
+| --- | --- | --- |
+| Hình | Ảnh sản phẩm + giá + phụ đề, zoom nhẹ | Motion graphics: câu móc bật ra, thẻ "điểm nổi bật", giá to nhấp nháy, thẻ "Theo dõi", phụ đề sáng theo từng chữ |
+| Cần | ffmpeg | ffmpeg + Node.js (npx) |
+| Thời gian dựng | vài giây | khoảng 1–2 phút mỗi video |
+
+Đổi mặc định bằng `VIDEO_ENGINE=hyperframes` trong `.env`, hoặc chọn từng lần bằng `--engine`.
+Kiểu cảnh được tự chọn; muốn chỉ định thì thêm `visuals` vào kịch bản (xem CLAUDE.md). Giao diện nằm trong
+`agent/motion_templates/` (HTML + CSS), đổi màu thì sửa `brand/brand.json`.
+
+Lần đầu dựng, HyperFrames tự tải Chrome để chụp khung hình. Nếu báo lỗi tải Chrome, chạy `npx hyperframes browser ensure`.
+HyperFrames gửi số liệu sử dụng ẩn danh cho HeyGen; tắt bằng `npx hyperframes telemetry disable`.
+
+## 6. Tùy chỉnh
 
 - Màu giá, tên kênh, câu khai báo affiliate: `brand/brand.json`.
 - Nhạc nền: đặt file vào `assets/music/` (xem README trong đó).
 - Quy tắc viết kịch bản và quy trình: `CLAUDE.md`. Sửa file này là sửa cách agent làm việc.
 - Tiêu chí kiểm duyệt: `.claude/agents/kiem-duyet.md`.
+- Từ khóa tìm deal mặc định: `deal_keywords` trong `brand/brand.json`, ví dụ `["tai nghe bluetooth", "sạc dự phòng"]`.
+- Nhãn nhỏ góc trên video: `video_tag` trong `brand/brand.json` (mặc định "Tiếp thị liên kết").
 
-## 6. Giới hạn cần biết
+## 7. Giới hạn cần biết
 
 - **Đã chạy thử**: dựng video, hàng đợi, đọc ID sản phẩm Shopee. **Chưa chạy thử với khóa thật**: ElevenLabs, FPT.AI, Shopee Open API, đăng qua Metricool. Lần đầu dùng mỗi dịch vụ, chạy `/lam-video` với 1 sản phẩm và xem kỹ kết quả.
 - **Metricool**: agent sẽ đọc mô tả công cụ trước khi đăng. Nếu Metricool cần video ở một đường link công khai, agent dừng lại và nhờ bạn tải video lên Metricool bằng tay (khoảng 1 phút).
 - **TikTok gắn giỏ hàng**: chỉ làm được trong app TikTok khi đăng. Agent chuẩn bị video và caption, bạn đăng.
+- **Tìm deal** (`/tim-deal`) chỉ dùng Shopee Open API chính thức, đã chạy thử với dữ liệu giả lập, chưa chạy với khóa thật. Bộ lọc nhóm cấm dựa trên từ khóa trong tên sản phẩm nên agent vẫn đọc lại từng cái.
 - **edge-tts** là dịch vụ không chính thức, có thể ngừng bất cứ lúc nào. Dùng để thử; khi đăng thật nên chuyển sang ElevenLabs hoặc FPT.AI.
 - Font Be Vietnam Pro dùng giấy phép SIL OFL (`assets/fonts/OFL.txt`).
+- Engine `hyperframes` chuyển thể từ [auto-video-gen](https://github.com/Cuongyd196/auto-video-gen) (MIT); ý tưởng chấm điểm deal lấy từ [auto-aff](https://github.com/aphuong2k/auto-aff). Chi tiết: `agent/motion_templates/NOTICE.md`.
+- Kiểm tra mã: `python -m unittest discover tests`.
 
 ## Cấu trúc thư mục
 
@@ -126,10 +156,12 @@ affiliate-agent/
 ├── .claude/commands/       # các lệnh /them-link, /lam-video, ...
 ├── .claude/agents/         # subagent kiểm duyệt
 ├── .mcp.json               # kết nối Metricool, vidIQ
-├── agent/                  # mã Python: hàng đợi, Shopee, giọng đọc, dựng video
+├── agent/                  # mã Python: hàng đợi, Shopee, tìm deal, giọng đọc, dựng video
+│   └── motion_templates/   # giao diện video motion graphics (engine hyperframes)
 ├── brand/brand.json        # nhận diện kênh
 ├── assets/fonts, music     # font và nhạc nền
 ├── scripts/run_daily.*     # chạy tự động mỗi sáng
 ├── work/<slug>/            # dữ liệu, ảnh, kịch bản từng sản phẩm
-└── output/<slug>/          # video, ảnh bìa, caption, phụ đề
+├── output/<slug>/          # video, ảnh bìa, caption, phụ đề
+└── tests/                  # kiểm tra tự động
 ```
