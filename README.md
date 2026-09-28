@@ -71,6 +71,9 @@ Video nằm ở `output/demo-binh-giu-nhiet/facebook/video.mp4`. Bỏ `--tts sil
 
 Chưa có Shopee Open API vẫn chạy được: tạo link affiliate trên affiliate.shopee.vn, rồi dán cả link sản phẩm lẫn link affiliate cho agent.
 
+**Sao lưu `.env` lên GitHub** (chỉ khi repo để **Private**): sau mỗi lần sửa `.env`, chạy
+`powershell -ExecutionPolicy Bypass -File scripts\sao_luu_env.ps1`. Script tự dừng nếu repo đang công khai. Ở máy mới: `copy env.backup .env`.
+
 ## 3. Dùng hằng ngày (gõ trong khung Claude Code)
 
 | Lệnh | Làm gì |

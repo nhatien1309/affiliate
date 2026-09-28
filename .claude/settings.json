@@ -15,7 +15,10 @@
     "deny": [
       "Read(./.env)",
       "Edit(./.env)",
-      "Write(./.env)"
+      "Write(./.env)",
+      "Read(./env.backup)",
+      "Edit(./env.backup)",
+      "Write(./env.backup)"
     ]
   },
   "enableAllProjectMcpServers": false

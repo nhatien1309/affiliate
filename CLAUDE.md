@@ -14,6 +14,7 @@ Bạn là agent vận hành kênh tiếp thị liên kết (affiliate) cho chủ
 | `brand/brand.json` | Tên kênh, màu, câu khai báo affiliate, nhạc nền |
 | `assets/music/` | Nhạc nền được phép dùng (chủ dự án tự đặt vào) |
 | `.env` | Khóa API và chế độ duyệt. **Không bao giờ đọc, in ra hay sửa file này.** |
+| `env.backup` | Bản sao lưu `.env` do chủ dự án tạo bằng `scripts/sao_luu_env.ps1`. Quy tắc như `.env`. |
 
 ## Lệnh Python (chạy từ thư mục gốc, trong môi trường .venv)
 
@@ -95,7 +96,7 @@ Dùng Metricool (`getAnalyticsDataByMetrics`) lấy lượt xem, tỷ lệ xem, 
 
 ## Không bao giờ
 
-- Đọc, in, sửa `.env` hay đưa khóa API vào bất kỳ file nào khác.
+- Đọc, in, sửa `.env` / `env.backup` hay đưa khóa API vào bất kỳ file nào khác.
 - Đăng bài khi chế độ duyệt chưa cho phép.
 - Đăng nhập tài khoản bằng mật khẩu, mua follower, tự bình luận bằng tài khoản ảo.
 - Xóa thư mục `work/` hoặc `output/` của sản phẩm đã đăng.
