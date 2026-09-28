@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="token" content="{{TOKEN}}">
+<title>Affiliate Agent</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <h1>Affiliate Agent</h1>
+      <p id="conn" class="conn">Đang kết nối…</p>
+    </div>
+  </div>
+  <div id="settings" class="chips"></div>
+</header>
+
+<main class="layout">
+  <div class="col-main">
+    <section class="card">
+      <h2>Thêm sản phẩm</h2>
+      <form id="add-form" class="add-form" autocomplete="off">
+        <input id="add-url" type="url" placeholder="Dán link Shopee hoặc TikTok Shop…" required>
+        <input id="add-note" type="text" placeholder="Ghi chú (không bắt buộc)" maxlength="200">
+        <div class="row">
+          <button type="submit" class="btn primary" data-run="1">Thêm và làm video ngay</button>
+          <button type="submit" class="btn" data-run="0">Chỉ thêm vào hàng đợi</button>
+        </div>
+      </form>
+      <p class="hint">TikTok Shop: sau khi thêm, đặt 3–5 ảnh chụp trang sản phẩm vào <code>work/&lt;slug&gt;/images/</code>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Lệnh nhanh</h2>
+      <div class="tiles">
+        <button type="button" class="tile" data-act="run" data-action="chay-hang-ngay" data-confirm="1">
+          <b>Chạy phiên hằng ngày</b><span>Xử lý các link mới trong hàng đợi, như lịch 8h15</span>
+        </button>
+        <button type="button" class="tile" data-act="run" data-action="bao-cao-tuan">
+          <b>Báo cáo tuần</b><span>Lượt xem, tương tác 7 ngày qua từ Metricool</span>
+        </button>
+        <button type="button" class="tile" data-act="run" data-action="doctor">
+          <b>Kiểm tra cài đặt</b><span>ffmpeg, font, .env, giọng đọc, Node.js</span>
+        </button>
+        <form class="tile tile-form" data-action="tim-deal">
+          <b>Tìm deal Shopee</b>
+          <div class="row">
+            <input name="keyword" placeholder="Từ khóa (bỏ trống = mặc định)" maxlength="80">
+            <input name="count" type="number" min="1" max="20" value="5" aria-label="Số lượng">
+            <button class="btn sm">Tìm</button>
+          </div>
+          <span>Cần Shopee Open API</span>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Hàng đợi</h2>
+        <div id="queue-tabs" class="tabs"></div>
+      </div>
+      <div id="queue"></div>
+    </section>
+
+    <section class="card">
+      <h2>Video đã dựng</h2>
+      <div id="products" class="products"></div>
+    </section>
+  </div>
+
+  <aside class="col-side">
+    <section class="card side">
+      <h2>Theo dõi lệnh</h2>
+      <div id="jobs" class="jobs"></div>
+      <div id="log-head" class="log-head"><span class="muted">Chọn một lệnh để xem log</span></div>
+      <pre id="log" class="log"></pre>
+      <h3>Chạy tự động mỗi sáng</h3>
+      <div id="daily" class="daily"></div>
+    </section>
+  </aside>
+</main>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

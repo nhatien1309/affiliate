@@ -8,6 +8,7 @@
   python -m agent render <slug> [--platform facebook|tiktok|both] [--tts edge|elevenlabs|fpt|silent]
                          [--engine ffmpeg|hyperframes]
   python -m agent deals [--keyword ..] [--sort ..] [--top 5] [--add]   tìm deal Shopee qua Open API
+  python -m agent ui [--port 8765] [--no-browser]   mở giao diện điều khiển trên trình duyệt
 """
 from __future__ import annotations
 
@@ -122,6 +123,11 @@ def cmd_deals(args) -> int:
     return 0
 
 
+def cmd_ui(args) -> int:
+    from .ui import serve
+    return serve(args.port, open_browser=not args.no_browser)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m agent", description="Agent tiếp thị liên kết")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -159,6 +165,11 @@ def main(argv=None) -> int:
     d.add_argument("--min-sales", type=int, default=50)
     d.add_argument("--add", action="store_true", help="thêm các deal đề xuất vào queue.csv")
     d.set_defaults(func=cmd_deals)
+
+    u = sub.add_parser("ui", help="mở giao diện điều khiển trên trình duyệt")
+    u.add_argument("--port", type=int, default=8765)
+    u.add_argument("--no-browser", action="store_true", help="không tự mở trình duyệt")
+    u.set_defaults(func=cmd_ui)
 
     args = parser.parse_args(argv)
     if args.cmd == "queue":

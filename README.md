@@ -83,7 +83,25 @@ Chưa có Shopee Open API vẫn chạy được: tạo link affiliate trên affi
 **Sao lưu `.env` lên GitHub** (chỉ khi repo để **Private**): sau mỗi lần sửa `.env`, chạy
 `powershell -ExecutionPolicy Bypass -File scripts\sao_luu_env.ps1`. Script tự dừng nếu repo đang công khai. Ở máy mới: `copy env.backup .env`.
 
-## 3. Dùng hằng ngày (gõ trong khung Claude Code)
+## 3. Dùng hằng ngày
+
+### Cách dễ nhất: giao diện điều khiển
+
+Nhấp đúp `scripts\mo_giao_dien.cmd` (hoặc chạy `python -m agent ui`). Trình duyệt mở `http://127.0.0.1:8765`, giữ cửa sổ đen mở trong lúc dùng.
+
+| Khu vực | Làm được gì |
+| --- | --- |
+| Thêm sản phẩm | Dán link → **Thêm và làm video ngay** hoặc **Chỉ thêm vào hàng đợi** |
+| Lệnh nhanh | Chạy phiên hằng ngày, báo cáo tuần, kiểm tra cài đặt, tìm deal Shopee |
+| Hàng đợi | Lọc theo trạng thái; mỗi link có nút **Làm video**, **Bỏ qua**, **Đưa về "Mới"**, **Xem video** |
+| Video đã dựng | Xem video Facebook/TikTok, sao chép caption, **Dựng lại** (chọn kiểu dựng, giọng đọc), **Duyệt và lên lịch**, mở thư mục |
+| Theo dõi lệnh | Log từng lệnh theo thời gian thực (Claude đang đọc/ghi gì, lỗi, bị chặn quyền), nút **Dừng**; giờ chạy tự động tiếp theo và nhật ký các buổi sáng |
+
+- Lệnh chạy lần lượt từng cái; bấm nhiều nút thì các lệnh xếp hàng chờ.
+- Nút có Claude (làm video, duyệt, chạy hằng ngày, báo cáo, tìm deal) dùng hạn mức gói Claude như khi gõ lệnh. Dựng lại và kiểm tra cài đặt không dùng Claude.
+- Giao diện chỉ mở được trên chính máy này. Log mỗi lệnh lưu thêm trong `logs/ui/`.
+
+### Hoặc gõ lệnh trong khung Claude Code
 
 | Lệnh | Làm gì |
 | --- | --- |
@@ -157,10 +175,13 @@ affiliate-agent/
 ├── .claude/agents/         # subagent kiểm duyệt
 ├── .mcp.json               # kết nối Metricool, vidIQ
 ├── agent/                  # mã Python: hàng đợi, Shopee, tìm deal, giọng đọc, dựng video
-│   └── motion_templates/   # giao diện video motion graphics (engine hyperframes)
+│   ├── motion_templates/   # giao diện video motion graphics (engine hyperframes)
+│   ├── ui.py               # giao diện điều khiển (python -m agent ui)
+│   └── ui_static/          # HTML, CSS, JS của giao diện điều khiển
 ├── brand/brand.json        # nhận diện kênh
 ├── assets/fonts, music     # font và nhạc nền
 ├── scripts/run_daily.*     # chạy tự động mỗi sáng
+├── scripts/mo_giao_dien.cmd # nhấp đúp để mở giao diện điều khiển
 ├── work/<slug>/            # dữ liệu, ảnh, kịch bản từng sản phẩm
 ├── output/<slug>/          # video, ảnh bìa, caption, phụ đề
 └── tests/                  # kiểm tra tự động
