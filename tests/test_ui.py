@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 from unittest import mock
 
-from agent import queue_store, ui
+from agent import config, queue_store, ui
 
 
 def wait(job, until=ui.DONE, timeout=20):
@@ -30,6 +30,7 @@ class TempDirs(unittest.TestCase):
         (root / "output").mkdir()
         self.patches = [
             mock.patch.object(queue_store, "QUEUE_FILE", root / "queue.csv"),
+            mock.patch.object(config, "BRAND_FILE", root / "brand.json"),
             mock.patch.object(ui, "UI_LOG_DIR", root / "logs" / "ui"),
             mock.patch.object(ui, "WORK_DIR", root / "work"),
             mock.patch.object(ui, "OUTPUT_DIR", root / "output"),
@@ -164,6 +165,17 @@ class ServerTest(TempDirs):
         code, body = self.call("/api/queue/add", {"url": "https://shopee.vn/binh-i.1.2"})
         self.assertEqual(code, 400)
         self.assertIn("đã có trong hàng đợi", json.loads(body)["error"])
+
+    def test_toggle_show_price(self):
+        (self.root / "brand.json").write_text('{"handle": "@kenh"}', encoding="utf-8")
+        self.assertFalse(json.loads(self.call("/api/state")[1])["settings"]["SHOW_PRICE"])  # mặc định tắt
+        code, body = self.call("/api/settings", {"show_price": True})
+        self.assertEqual(code, 200)
+        self.assertTrue(json.loads(body)["settings"]["SHOW_PRICE"])
+        saved = json.loads((self.root / "brand.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved, {"handle": "@kenh", "show_price": True})  # giữ nguyên các mục khác
+        self.assertEqual(self.call("/api/settings", {"show_price": "yes"})[0], 400)
+        self.assertEqual(self.call("/api/settings", {"show_price": False}, token=False)[0], 403)
 
     def test_media_blocks_path_traversal(self):
         out = self.root / "output" / "sp" / "facebook"

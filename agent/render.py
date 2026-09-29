@@ -11,6 +11,7 @@ Hai engine dùng chung giọng đọc, nhạc nền, phụ đề .srt, caption v
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -25,10 +26,23 @@ W, H, FPS = 1080, 1920, 30
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_SECONDS = {"facebook": 40, "tiktok": 30}  # khớp mục "Kịch bản" trong CLAUDE.md
 ENGINES = ("ffmpeg", "hyperframes")
+# số tiền trong câu thoại: "89 nghìn", "89.000đ", "10k" (không bắt "10kg", "750 ml", "24 tiếng")
+PRICE_RE = re.compile(r"\d[\d.,]*\s*(?:đ|₫|vnđ|vnd|k|nghìn|ngàn|triệu)\b", re.IGNORECASE)
 
 
 class RenderError(RuntimeError):
     pass
+
+
+def price_mentions(texts: list[str]) -> list[str]:
+    """Những câu có nhắc số tiền, để cảnh báo khi đang tắt hiện giá."""
+    return [t for t in texts if t and PRICE_RE.search(t)]
+
+
+def without_price_scenes(script: dict) -> dict:
+    """Tắt giá: bỏ cảnh "price" trong visuals để engine motion tự chọn kiểu cảnh khác."""
+    visuals = script.get("visuals") or []
+    return {**script, "visuals": [None if v and v.get("template") == "price" else v for v in visuals]}
 
 
 # ---------- vẽ chữ ----------
@@ -208,7 +222,8 @@ def render(slug: str, platform: str, provider: str | None = None, engine: str | 
         raise RenderError(f"Chưa có ảnh trong {folder / 'images'}")
 
     b = brand()
-    price = script.get("price_text") or product.get("price_text")
+    show_price = b.get("show_price") is True
+    price = (script.get("price_text") or product.get("price_text")) if show_price else None
     tmp = folder / f"_build_{platform}"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir(parents=True)
@@ -234,7 +249,8 @@ def render(slug: str, platform: str, provider: str | None = None, engine: str | 
     cover_img: Image.Image | None = None
     if engine == "hyperframes":
         from . import motion
-        motion.render_video(product=product, script=script, lines=lines, durations=durations,
+        motion.render_video(product=product, script=script if show_price else without_price_scenes(script),
+                            lines=lines, durations=durations,
                             images=images, brand=b, price_text=price, platform=platform,
                             build_dir=tmp / "motion", out=video)
     else:
@@ -294,10 +310,13 @@ def render(slug: str, platform: str, provider: str | None = None, engine: str | 
     limit = MAX_SECONDS[platform]
     if t > limit:
         warnings.append(f"Video dài {t:.0f}s, vượt {limit}s khuyến nghị cho {platform}. Rút gọn kịch bản.")
+    if not show_price:
+        warnings += [f"Đang tắt hiện giá nhưng kịch bản vẫn nhắc giá: \"{s}\". Bỏ phần giá khỏi câu này."
+                     for s in price_mentions([script.get("hook") or "", *lines])]
 
     meta = {"slug": slug, "platform": platform, "seconds": round(t, 1), "scenes": len(lines),
             "music": music.name if music else None, "tts": provider or "mặc định trong .env",
-            "engine": engine,
+            "engine": engine, "show_price": show_price,
             "warnings": warnings}
     (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     shutil.rmtree(tmp, ignore_errors=True)

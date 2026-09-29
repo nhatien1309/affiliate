@@ -41,10 +41,19 @@ def brand() -> dict:
         "caption_stroke": "#000000",
         "music_volume": 0.12,
         "disclosure": "Link tiếp thị liên kết: mình nhận hoa hồng nếu bạn mua qua link, giá không đổi.",
+        "show_price": False,  # hiện giá trong video; bật/tắt trên giao diện điều khiển
     }
     if BRAND_FILE.exists():
         defaults.update(json.loads(BRAND_FILE.read_text(encoding="utf-8")))
     return defaults
+
+
+def update_brand(**changes) -> dict:
+    """Ghi vài mục vào brand/brand.json, giữ nguyên các mục khác."""
+    data = json.loads(BRAND_FILE.read_text(encoding="utf-8")) if BRAND_FILE.exists() else {}
+    data.update(changes)
+    BRAND_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return brand()
 
 
 def font(weight: str = "Bold") -> str:

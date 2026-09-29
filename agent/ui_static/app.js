@@ -113,7 +113,10 @@ function renderSettings() {
     ["Claude CLI", s.CLAUDE_CLI ? "Sẵn sàng" : "Chưa cài", s.CLAUDE_CLI ? "" : "bad"],
   ];
   if (s.CLAUDE_CLI && s.CLAUDE_TRUSTED === false) chips.push(["Quyền Claude", "Chưa tin thư mục", "bad"]);
-  $("#settings").innerHTML = chips
+  const price = `<button type="button" class="chip toggle ${s.SHOW_PRICE ? "on" : ""}" data-act="price"
+    aria-pressed="${!!s.SHOW_PRICE}" title="Bấm để ${s.SHOW_PRICE ? "tắt" : "bật"}. Áp dụng cho video dựng sau.">
+    <b>Giá trong video</b> ${s.SHOW_PRICE ? "Bật" : "Tắt"}</button>`;
+  $("#settings").innerHTML = price + chips
     .map(([k, v, cls]) => `<span class="chip ${cls || ""}"><b>${esc(k)}</b> ${esc(v)}</span>`).join("");
 }
 
@@ -430,6 +433,12 @@ document.addEventListener("click", (e) => {
     case "set": post("/api/queue/set", { id: d.id, status: d.status }, "Đã cập nhật hàng đợi"); break;
     case "goto": document.getElementById(`p-${d.slug}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); break;
     case "open": post("/api/open", { slug: d.slug }); break;
+    case "price": {
+      const on = !state?.settings.SHOW_PRICE;
+      post("/api/settings", { show_price: on },
+        `Đã ${on ? "bật" : "tắt"} giá trong video. Video đã dựng: bấm "Dựng lại" để áp dụng.`);
+      break;
+    }
     case "copy": copyCaption(d.slug, d.platform); break;
     case "job": selectJob(d.id); break;
     case "stop": post(`/api/jobs/${encodeURIComponent(d.id)}/stop`, {}, "Đã gửi lệnh dừng"); break;

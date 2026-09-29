@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+import unicodedata
 import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -26,7 +27,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from . import queue_store
-from .config import OUTPUT_DIR, ROOT, WORK_DIR
+from .config import OUTPUT_DIR, ROOT, WORK_DIR, brand, update_brand
 
 try:
     from dotenv import dotenv_values
@@ -343,6 +344,7 @@ def build_job(action, p: dict) -> tuple[str, list[str], str]:
 def _settings() -> dict:
     vals = {k: (v or "").strip() for k, v in dotenv_values(ROOT / ".env").items()}
     out = {k: vals.get(k) or default for k, default in SETTINGS.items()}
+    out["SHOW_PRICE"] = brand().get("show_price") is True
     out["SHOPEE_API"] = bool(vals.get("SHOPEE_APP_ID") and vals.get("SHOPEE_SECRET"))
     out["CLAUDE_CLI"] = bool(shutil.which("claude"))
     out["CLAUDE_TRUSTED"] = _claude_trusted()
@@ -350,6 +352,11 @@ def _settings() -> dict:
 
 
 _trust_cache: dict = {}
+
+
+def _path_key(path: str) -> str:
+    # macOS có thể lưu tên thư mục có dấu ("trọng") dạng NFD, còn ~/.claude.json ghi dạng NFC
+    return unicodedata.normalize("NFC", path.replace("\\", "/")).rstrip("/").lower()
 
 
 def _claude_trusted() -> bool | None:
@@ -360,13 +367,13 @@ def _claude_trusted() -> bool | None:
         mtime = path.stat().st_mtime
         if _trust_cache.get("mtime") != mtime:
             projects = json.loads(path.read_text(encoding="utf-8")).get("projects") or {}
-            trusted = {k.replace("\\", "/").rstrip("/").lower() for k, v in projects.items()
+            trusted = {_path_key(k) for k, v in projects.items()
                        if isinstance(v, dict) and v.get("hasTrustDialogAccepted")}
             _trust_cache.update(mtime=mtime, trusted=trusted)
     except (OSError, ValueError, AttributeError):
         return None
     candidates = [ROOT, *ROOT.parents]  # tin thư mục cha cũng tính
-    return any(p.as_posix().rstrip("/").lower() in _trust_cache["trusted"] for p in candidates)
+    return any(_path_key(p.as_posix()) in _trust_cache["trusted"] for p in candidates)
 
 
 def _read_json(path: Path) -> dict:
@@ -621,6 +628,11 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("id không hợp lệ")
                 status = _choice(body.get("status"), ("moi", "bo_qua"), "Trạng thái")
                 return self._json({"row": queue_store.set_status(item_id, status)})
+            if parts == ["api", "settings"]:  # chỉ các mục trong brand.json, không đụng tới .env
+                if not isinstance(body.get("show_price"), bool):
+                    raise ValueError("show_price phải là true hoặc false")
+                update_brand(show_price=body["show_price"])
+                return self._json({"settings": _settings()})
             if parts == ["api", "run"]:
                 job = self.runner.submit(*build_job(body.get("action"), body))
                 return self._json({"job": job.summary(self.runner.position(job))})

@@ -30,6 +30,12 @@ def cmd_doctor(_args) -> int:
         ok = ok and cond
 
     print("Kiểm tra cài đặt:")
+    try:
+        import dotenv, PIL, requests  # noqa: F401  thiếu dotenv thì .env bị bỏ qua mà không báo
+        check("thư viện Python", True)
+    except ImportError as e:
+        check("thư viện Python", False, f"thiếu {e.name}: chạy bằng Python trong .venv "
+              "(source .venv/bin/activate, Windows: .venv\\Scripts\\activate) hoặc pip install -r requirements.txt")
     check("ffmpeg", bool(shutil.which("ffmpeg")), "cài ffmpeg (xem README)")
     check("ffprobe", bool(shutil.which("ffprobe")), "đi kèm ffmpeg")
     try:

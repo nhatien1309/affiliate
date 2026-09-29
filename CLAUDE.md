@@ -45,7 +45,7 @@ Lệnh in `LỖI: ...` khi thất bại. Đọc lỗi, sửa nguyên nhân nếu
 4. Điền `features` trong `product.json`: chỉ những điều có trong dữ liệu shop hoặc ảnh, ghi "(theo mô tả shop)" khi là lời shop tự nói.
 5. Viết `script_facebook.json` và `script_tiktok.json` theo mục "Kịch bản".
 6. Gọi subagent `kiem-duyet` kiểm tra hai kịch bản. Sửa đến khi đạt.
-7. `render <slug> --platform both`. Xem `meta.json`; nếu `warnings` không rỗng (video quá dài) thì rút gọn và dựng lại.
+7. `render <slug> --platform both`. Xem `meta.json`; nếu `warnings` không rỗng (video quá dài, nhắc giá khi đang tắt giá) thì sửa kịch bản theo cảnh báo và dựng lại.
 8. Chuyển trạng thái theo `APPROVAL_MODE` (mục "Duyệt và đăng").
 
 ## Tìm deal (khi chủ dự án nhờ hoặc hàng đợi trống)
@@ -71,6 +71,8 @@ Lệnh in `LỖI: ...` khi thất bại. Đọc lỗi, sửa nguyên nhân nếu
 ```
 
 - Mỗi phần tử `lines` là một cảnh + một dòng phụ đề: tối đa 18 từ, viết như nói, số viết bằng chữ khi đọc sẽ tự nhiên hơn ("89 nghìn").
+- Giá: đọc `show_price` trong `brand/brand.json` (chủ dự án bật/tắt trên giao diện, mặc định `false`).
+  `false`: không nhắc giá hay số tiền ở `hook`, `lines`, `caption`, `visuals`, bỏ trường `price_text`; công cụ dựng cũng không hiện giá. `true`: được nhắc giá như ví dụ trên.
 - Facebook Reels: 4–7 câu, 20–40 giây. Câu cuối: "link ở bình luận ghim".
 - TikTok: 3–6 câu, 15–30 giây, nhịp nhanh hơn, câu đầu vào thẳng vấn đề. Câu cuối: khi `TIKTOK_HAS_CART=false` → "link ở bio"; khi `true` → "bấm giỏ hàng bên dưới".
 - Viết 3 phương án câu móc, chọn 1 cho `hook`, ghi 2 phương án còn lại vào `agent_note` của hàng đợi để thử sau.
@@ -96,7 +98,7 @@ Mảng dài bằng `lines`, mỗi phần tử chọn kiểu cảnh cho câu tho�
 | `hook` | `headline` | `hook` của kịch bản |
 | `product` | (không có) | ảnh sản phẩm + giá |
 | `features` | `title`, `bullets` (≤ 4) | "Điểm nổi bật", `features` trong product.json |
-| `price` | `value`, `old`, `badge`, `note` | `price_text`; `price_before_text`, `discount_rate` trong product.json nếu có |
+| `price` | `value`, `old`, `badge`, `note` | `price_text`; `price_before_text`, `discount_rate` trong product.json nếu có. Chỉ dùng khi `show_price` là `true` |
 | `callout` | `statement`, `tag` | câu thoại |
 | `outro` | `cta` | theo nền tảng như câu cuối ở trên |
 

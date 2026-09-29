@@ -21,5 +21,17 @@
       "Write(./env.backup)"
     ]
   },
-  "enableAllProjectMcpServers": false
+  "enableAllProjectMcpServers": false,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/kich_hoat_venv.sh\""
+          }
+        ]
+      }
+    ]
+  }
 }

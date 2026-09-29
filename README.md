@@ -154,6 +154,8 @@ HyperFrames gửi số liệu sử dụng ẩn danh cho HeyGen; tắt bằng `np
 - Tiêu chí kiểm duyệt: `.claude/agents/kiem-duyet.md`.
 - Từ khóa tìm deal mặc định: `deal_keywords` trong `brand/brand.json`, ví dụ `["tai nghe bluetooth", "sạc dự phòng"]`.
 - Nhãn nhỏ góc trên video: `video_tag` trong `brand/brand.json` (mặc định "Tiếp thị liên kết").
+- Hiện giá trong video: nút **Giá trong video** ở đầu giao diện điều khiển, hoặc `show_price` trong `brand/brand.json`
+  (mặc định tắt). Khi tắt, video không có nhãn giá và agent không nhắc giá trong lời thoại. Video đã dựng: bấm **Dựng lại**.
 
 ## 7. Giới hạn cần biết
 
