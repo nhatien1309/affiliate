@@ -11,5 +11,11 @@
   "disclosure": "Link tiếp thị liên kết: mình nhận hoa hồng nếu bạn mua qua link, giá không đổi.",
   "video_tag": "Tiếp thị liên kết",
   "show_price": false,
-  "deal_keywords": []
+  "deal_keywords": [],
+  "voice": {
+    "provider": "edge",
+    "edge_voice": "vi-VN-NamMinhNeural",
+    "edge_rate": "+8%",
+    "edge_pitch": "+0Hz"
+  }
 }

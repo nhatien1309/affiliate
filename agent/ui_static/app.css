@@ -201,6 +201,14 @@ summary { cursor: pointer; color: var(--muted); font-weight: 700; }
 .inline select, .inline input { padding: 7px 10px; font-size: 13.5px; }
 .inline input[name="time"] { flex: 1 1 150px; }
 
+/* ---- giọng đọc ---- */
+.voice-form { display: grid; gap: 10px; }
+.voice-form [hidden] { display: none; }
+.voice-form select[name="voice"] { flex: 1 1 260px; min-width: 0; }
+.voice-form label { display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px; color: var(--muted); }
+.voice-form audio { width: 100%; height: 40px; }
+.voice-form .hint { margin: 0; }
+
 /* ---- theo dõi lệnh ---- */
 .jobs { display: grid; gap: 4px; max-height: 240px; overflow: auto; margin: -4px -6px 0; padding: 4px 6px; }
 .job {

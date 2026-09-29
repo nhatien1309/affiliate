@@ -11,7 +11,7 @@ Bạn là agent vận hành kênh tiếp thị liên kết (affiliate) cho chủ
 | `work/<slug>/images/` | Ảnh sản phẩm dùng trong video |
 | `work/<slug>/script_facebook.json`, `script_tiktok.json` | Kịch bản bạn viết |
 | `output/<slug>/<nền tảng>/` | `video.mp4`, `cover.jpg`, `caption.txt`, `subtitles.srt`, `meta.json` |
-| `brand/brand.json` | Tên kênh, màu, câu khai báo affiliate, nhạc nền |
+| `brand/brand.json` | Tên kênh, màu, câu khai báo affiliate, nhạc nền, giọng đọc (`voice`, chủ dự án chọn trên giao diện) |
 | `assets/music/` | Nhạc nền được phép dùng (chủ dự án tự đặt vào) |
 | `agent/motion_templates/` | Giao diện video motion graphics (HTML/CSS/GSAP) cho engine `hyperframes` |
 | `.env` | Khóa API và chế độ duyệt. **Không bao giờ đọc, in ra hay sửa file này.** |
@@ -29,6 +29,7 @@ python -m agent render <slug> --platform facebook|tiktok|both [--tts edge|eleven
 python -m agent deals [--keyword "<từ khóa>"]... [--sort ban-chay|hoa-hong|lien-quan] [--top 5] [--add]
 ```
 
+- `--tts` bỏ trống thì dùng giọng chủ dự án chọn trên giao diện (`voice` trong `brand.json`), chưa chọn thì theo `.env`. Không tự đổi mục `voice`.
 - `--engine` bỏ trống thì dùng `VIDEO_ENGINE` trong `.env` (mặc định `ffmpeg`). `hyperframes` đẹp hơn (chữ bật, thẻ tính năng, giá nhấp nháy, phụ đề sáng theo từng chữ) nhưng cần Node.js và dựng chậm hơn (khoảng 1–2 phút/video).
 - `deals` cần Shopee Open API. Không có `--keyword` thì dùng `deal_keywords` trong `brand.json`; vẫn trống thì lấy danh sách "hiệu quả" của Shopee. Lệnh tự loại sản phẩm đánh giá < 4.5, bán < 50, tên có từ thuộc nhóm cấm, và link đã có trong hàng đợi.
 

@@ -44,8 +44,10 @@ def cmd_doctor(_args) -> int:
     except FileNotFoundError as e:
         check("font tiếng Việt", False, str(e))
     check("file .env", (ROOT / ".env").exists(), "copy .env.example thành .env")
-    provider = env("TTS_PROVIDER", "edge")
-    print(f"  Giọng đọc đang dùng: {provider}")
+    from . import tts
+    voice = tts.voice_settings()
+    provider = voice["provider"]
+    print(f"  Giọng đọc đang dùng: {tts.describe(voice)}")
     if provider == "edge":
         try:
             import edge_tts  # noqa: F401
@@ -54,7 +56,7 @@ def cmd_doctor(_args) -> int:
             check("edge-tts", False, "pip install edge-tts")
     elif provider == "elevenlabs":
         check("ELEVENLABS_API_KEY", bool(env("ELEVENLABS_API_KEY")), "điền vào .env")
-        check("ELEVENLABS_VOICE_ID", bool(env("ELEVENLABS_VOICE_ID")), "điền vào .env")
+        check("giọng ElevenLabs", bool(voice["elevenlabs_voice_id"]), "chọn trên giao diện hoặc điền ELEVENLABS_VOICE_ID")
     elif provider == "fpt":
         check("FPT_API_KEY", bool(env("FPT_API_KEY")), "điền vào .env")
     engine = env("VIDEO_ENGINE", "ffmpeg")

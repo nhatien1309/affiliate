@@ -22,6 +22,7 @@ const saved = {
 };
 
 let state = null;
+const voice = { lists: null, loading: false, tried: 0 }; // danh sách giọng cho menu "Giọng đọc" (/api/voices)
 let queueFilter = saved.get("queueFilter", "all");
 const drawn = {};                                     // chữ ký dữ liệu đã vẽ: không đổi thì không vẽ lại (video không bị dừng)
 const log = { job: null, next: 0, done: true, daily: null, busy: false };
@@ -83,6 +84,8 @@ async function refresh() {
     return;
   }
   draw("settings", [state.settings, state.schedule], renderSettings);
+  if (voice.lists) draw("voice", state.settings.VOICE, fillVoiceForm);  // chỉ đổ lại khi giọng đã lưu đổi
+  else if (!voice.loading && Date.now() - voice.tried > 10000) loadVoices();  // lần trước lỗi: thử lại sau 10 giây
   draw("queue", [state.queue, queueFilter, state.products.map((p) => p.slug)], renderQueue);
   renderProducts(state.products);
   draw("jobs", [state.jobs.map((j) => [j.id, j.status, j.position]), log.job], renderJobs);
@@ -106,7 +109,6 @@ function renderSettings() {
   const chips = [
     ["Chế độ", APPROVAL_LABEL[s.APPROVAL_MODE] || s.APPROVAL_MODE],
     ["Dựng", s.VIDEO_ENGINE],
-    ["Giọng", s.TTS_PROVIDER],
     ["Tối đa", `${s.MAX_PER_DAY} video/ngày`],
     ["Giỏ TikTok", s.TIKTOK_HAS_CART === "true" ? "Có" : "Chưa"],
     ["Shopee API", s.SHOPEE_API ? "Có" : "Chưa", s.SHOPEE_API ? "" : "dim"],
@@ -116,7 +118,10 @@ function renderSettings() {
   const price = `<button type="button" class="chip toggle ${s.SHOW_PRICE ? "on" : ""}" data-act="price"
     aria-pressed="${!!s.SHOW_PRICE}" title="Bấm để ${s.SHOW_PRICE ? "tắt" : "bật"}. Áp dụng cho video dựng sau.">
     <b>Giá trong video</b> ${s.SHOW_PRICE ? "Bật" : "Tắt"}</button>`;
-  $("#settings").innerHTML = price + chips
+  const voiceChip = `<button type="button" class="chip toggle" data-act="goto-voice" title="Đổi giọng đọc">
+    <b>Giọng</b> ${esc(s.VOICE_LABEL || s.TTS_PROVIDER)}</button>`;
+  $("#voice-now").textContent = `Đang dùng: ${s.VOICE_LABEL || s.TTS_PROVIDER}`;
+  $("#settings").innerHTML = price + voiceChip + chips
     .map(([k, v, cls]) => `<span class="chip ${cls || ""}"><b>${esc(k)}</b> ${esc(v)}</span>`).join("");
 }
 
@@ -214,7 +219,7 @@ function productCard(p) {
       <form class="inline" data-action="render" data-slug="${esc(p.slug)}">
         <select name="platform" aria-label="Nền tảng">${opts(PLATFORM_OPTS)}</select>
         <select name="engine" aria-label="Kiểu dựng">${opts([["", "Kiểu dựng: mặc định"], ["ffmpeg", "ffmpeg (nhanh)"], ["hyperframes", "hyperframes (motion)"]])}</select>
-        <select name="tts" aria-label="Giọng đọc">${opts([["", "Giọng: mặc định"], ["edge", "edge (miễn phí)"], ["elevenlabs", "ElevenLabs"], ["fpt", "FPT.AI"], ["silent", "Không tiếng"]])}</select>
+        <select name="tts" aria-label="Giọng đọc">${opts([["", "Giọng: đang chọn"], ["edge", "edge (miễn phí)"], ["elevenlabs", "ElevenLabs"], ["fpt", "FPT.AI"], ["silent", "Không tiếng"]])}</select>
         <button class="btn" ${p.scripts.length ? "" : 'disabled title="Chưa có kịch bản"'}>${built ? "Dựng lại" : "Dựng video"}</button>
       </form>
       <form class="inline" data-action="duyet" data-slug="${esc(p.slug)}" data-confirm="1">
@@ -280,6 +285,132 @@ function renderDaily() {
   $("#daily").innerHTML = head + (names.length
     ? names.map((n) => `<button type="button" class="tab ${n === log.daily ? "on" : ""}" data-act="daily" data-name="${esc(n)}">${esc(n.replace(".log", ""))}</button>`).join("")
     : `<p class="small muted">Chưa có nhật ký nào.</p>`);
+}
+
+// ---------- giọng đọc ----------
+
+const RATE_OPTS = [["-10%", "Chậm (-10%)"], ["+0%", "Bình thường"], ["+8%", "Hơi nhanh (+8%)"], ["+15%", "Nhanh (+15%)"], ["+25%", "Rất nhanh (+25%)"]];
+const PITCH_OPTS = [["-8Hz", "Trầm"], ["-4Hz", "Hơi trầm"], ["+0Hz", "Bình thường"], ["+4Hz", "Hơi cao"], ["+8Hz", "Cao"]];
+const GENDER = { male: "nam", female: "nữ" };
+const ACCENT = { northern: "Bắc", central: "Trung", southern: "Nam" };
+
+async function loadVoices(refresh = false) {
+  voice.loading = true;
+  voice.tried = Date.now();
+  try {
+    voice.lists = await api(`/api/voices${refresh ? "?refresh=1" : ""}`);
+  } catch (e) {
+    $("#voice-form").voice.innerHTML = `<option value="">Chưa tải được danh sách giọng</option>`;
+    $("#voice-hint").textContent = /Không có trang này|Lỗi 404/.test(e.message)
+      ? "Giao diện đang chạy bản cũ: tắt cửa sổ giao diện (Ctrl+C) rồi mở lại, sau đó tải lại trang này."
+      : e.message;
+    return;
+  } finally {
+    voice.loading = false;
+  }
+  drawn.voice = null;
+  if (state) draw("voice", state.settings.VOICE, fillVoiceForm);
+}
+
+function selectOpts(sel, list, value) {  // giữ được giá trị đang lưu dù không có trong danh sách sẵn
+  const all = value && !list.some(([v]) => v === value) ? [[value, value], ...list] : list;
+  sel.innerHTML = opts(all);
+  if (value) sel.value = value;
+}
+
+function fillVoiceForm() {
+  const v = state.settings.VOICE;
+  const f = $("#voice-form");
+  f.provider.value = ["edge", "elevenlabs", "fpt"].includes(v.provider) ? v.provider : "edge";
+  selectOpts(f.edge_rate, RATE_OPTS, v.edge_rate);
+  selectOpts(f.edge_pitch, PITCH_OPTS, v.edge_pitch);
+  voiceOptions();
+}
+
+function elOption(x) {
+  const extra = [GENDER[x.gender], ACCENT[x.accent]].filter(Boolean).join(" ");
+  return `<option value="${esc(x.id)}" data-name="${esc(x.name)}">${esc(x.name)}${extra ? ` · ${esc(extra)}` : ""}</option>`;
+}
+
+function voiceOptions() {  // đổ danh sách giọng theo nhà cung cấp đang chọn, chọn sẵn giọng đã lưu
+  const f = $("#voice-form");
+  const L = voice.lists;
+  const v = state.settings.VOICE;
+  const p = f.provider.value;
+  const group = (label, html) => (html ? `<optgroup label="${esc(label)}">${html}</optgroup>` : "");
+  let html = "";
+  let selected = "";
+  let hint = "";
+  if (p === "edge") {
+    const pick = (g) => opts(L.edge.filter((x) => (x.group === "vi") === g).map((x) => [x.id, x.name]));
+    html = group("Giọng Việt", pick(true)) + group("Giọng nước ngoài nói tiếng Việt (lơ lớ)", pick(false));
+    selected = v.edge_voice;
+    hint = "Miễn phí. Edge thỉnh thoảng lỗi mạng, công cụ tự thử lại.";
+  } else if (p === "fpt") {
+    html = opts(L.fpt.map((x) => [x.id, x.name]));
+    selected = v.fpt_voice;
+    hint = L.keys.fpt ? "FPT.AI: 100.000 ký tự miễn phí mỗi tháng."
+      : "Chưa có FPT_API_KEY trong .env: lưu được lựa chọn nhưng chưa nghe thử hay dựng video được.";
+  } else if (L.elevenlabs) {
+    const els = L.elevenlabs;
+    html = group("Giọng Việt (cần gói trả phí)", els.filter((x) => x.vi).map(elOption).join(""))
+      + group("Giọng mặc định (gói Free dùng được, đọc tiếng Việt lơ lớ)", els.filter((x) => !x.vi && x.premade).map(elOption).join(""))
+      + group("Giọng khác trong tài khoản", els.filter((x) => !x.vi && !x.premade).map(elOption).join(""));
+    selected = v.elevenlabs_voice_id;
+    hint = "Mỗi lần nghe thử một giọng mới tốn khoảng 40 ký tự (nghe lại thì không tốn). "
+      + "Gói Free không dùng được giọng thư viện qua API và không được dùng thương mại. "
+      + "Muốn thêm giọng Việt: vào elevenlabs.io → Voice Library → Add, rồi bấm \"Tải lại danh sách\".";
+  } else {
+    hint = L.elevenlabs_error || "Không tải được danh sách giọng ElevenLabs.";
+  }
+  f.voice.innerHTML = html || `<option value="">(không có giọng)</option>`;
+  if (selected && ![...f.voice.options].some((o) => o.value === selected)) {
+    f.voice.insertAdjacentHTML("afterbegin", `<option value="${esc(selected)}">${esc(p === "elevenlabs" ? v.elevenlabs_voice_name || selected : selected)}</option>`);
+  }
+  if (selected) f.voice.value = selected;
+  $("#voice-edge").hidden = p !== "edge";
+  $("#voice-hint").textContent = hint;
+}
+
+function formVoice() {
+  const f = $("#voice-form");
+  const p = f.provider.value;
+  const id = f.voice.value;
+  if (p === "edge") return { provider: p, edge_voice: id, edge_rate: f.edge_rate.value, edge_pitch: f.edge_pitch.value };
+  if (p === "fpt") return { provider: p, fpt_voice: id };
+  const opt = f.voice.selectedOptions[0];
+  return { provider: p, elevenlabs_voice_id: id, elevenlabs_voice_name: (opt && (opt.dataset.name || opt.textContent)) || "" };
+}
+
+async function previewVoice(btn) {
+  if (!voice.lists) return;
+  btn.disabled = true;
+  btn.textContent = "Đang tạo giọng…";
+  try {
+    const d = await api("/api/voice/preview", formVoice());
+    const a = $("#voice-audio");
+    a.hidden = false;
+    a.src = d.url;
+    a.play().catch(() => { /* trình duyệt chặn tự phát: bấm nút phát */ });
+  } catch (e) {
+    toast(e.message, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Nghe thử";
+  }
+}
+
+async function saveVoice() {
+  try {
+    const d = await api("/api/voice", formVoice());
+    state.settings = d.settings;
+    drawn.settings = null;
+    renderSettings();
+    toast(`Đã chọn: ${d.settings.VOICE_LABEL}. Video dựng sau sẽ dùng giọng này; video đã dựng bấm "Dựng lại" để đổi.`, "ok");
+    refresh();
+  } catch (e) {
+    toast(e.message, "err");
+  }
 }
 
 // ---------- log ----------
@@ -440,6 +571,9 @@ document.addEventListener("click", (e) => {
       break;
     }
     case "copy": copyCaption(d.slug, d.platform); break;
+    case "goto-voice": $("#voice-card").scrollIntoView({ behavior: "smooth", block: "start" }); break;
+    case "voice-preview": previewVoice(b); break;
+    case "voice-reload": loadVoices(true).then(() => toast("Đã tải lại danh sách giọng", "ok")); break;
     case "job": selectJob(d.id); break;
     case "stop": post(`/api/jobs/${encodeURIComponent(d.id)}/stop`, {}, "Đã gửi lệnh dừng"); break;
     case "daily": showDaily(d.name); break;
@@ -454,10 +588,19 @@ document.addEventListener("submit", (e) => {
     addLink(!e.submitter || e.submitter.dataset.run === "1");
     return;
   }
+  if (f.id === "voice-form") {
+    saveVoice();
+    return;
+  }
   const params = { ...Object.fromEntries(new FormData(f)), slug: f.dataset.slug };
   run(f.dataset.action, params, f.dataset.confirm ? confirmText(f.dataset.action, params) : null);
 });
 
+document.addEventListener("change", (e) => {
+  if (e.target.name === "provider" && e.target.form && e.target.form.id === "voice-form" && voice.lists) voiceOptions();
+});
+
 refresh();
+loadVoices();
 setInterval(refresh, 2500);
 setInterval(() => { pollLog(); tick(); }, 1000);

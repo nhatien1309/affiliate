@@ -70,8 +70,8 @@ python -m agent render demo-binh-giu-nhiet --platform facebook --tts silent --en
 
 | Mục | Bắt buộc? | Lấy ở đâu |
 | --- | --- | --- |
-| `TTS_PROVIDER` | Có | `edge` để thử miễn phí; chuyển `elevenlabs` hoặc `fpt` khi đăng thật |
-| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Nếu dùng ElevenLabs | elevenlabs.io → Profile → API Keys; Voice ID trong Voice Library |
+| `TTS_PROVIDER` | Có | `edge` để thử miễn phí; chuyển `elevenlabs` hoặc `fpt` khi đăng thật. Chọn giọng trên giao diện thì không cần sửa dòng này |
+| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Nếu dùng ElevenLabs | elevenlabs.io → Developers → API Keys, cấp quyền **Text to Speech** và **Voices: Read**; giọng chọn trên giao diện |
 | `FPT_API_KEY` | Nếu dùng FPT.AI | console.fpt.ai → Text to Speech |
 | `SHOPEE_APP_ID`, `SHOPEE_SECRET` | Không | affiliate.shopee.vn → Open API (cần được Shopee duyệt) |
 | `VIDEO_ENGINE` | Có | `ffmpeg` (mặc định) hoặc `hyperframes` (mục 5) |
@@ -93,6 +93,7 @@ Nhấp đúp `scripts\mo_giao_dien.cmd` (hoặc chạy `python -m agent ui`). Tr
 | --- | --- |
 | Thêm sản phẩm | Dán link → **Thêm và làm video ngay** hoặc **Chỉ thêm vào hàng đợi** |
 | Lệnh nhanh | Chạy phiên hằng ngày, báo cáo tuần, kiểm tra cài đặt, tìm deal Shopee |
+| Giọng đọc | Chọn nhà cung cấp (Edge, ElevenLabs, FPT.AI), giọng, tốc độ, cao độ; **Nghe thử** rồi **Dùng giọng này**. Lưu ở `brand/brand.json`, áp dụng cho video dựng sau |
 | Hàng đợi | Lọc theo trạng thái; mỗi link có nút **Làm video**, **Bỏ qua**, **Đưa về "Mới"**, **Xem video** |
 | Video đã dựng | Xem video Facebook/TikTok, sao chép caption, **Dựng lại** (chọn kiểu dựng, giọng đọc), **Duyệt và lên lịch**, mở thư mục |
 | Theo dõi lệnh | Log từng lệnh theo thời gian thực (Claude đang đọc/ghi gì, lỗi, bị chặn quyền), nút **Dừng**; giờ chạy tự động tiếp theo và nhật ký các buổi sáng |
