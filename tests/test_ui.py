@@ -177,6 +177,56 @@ class ServerTest(TempDirs):
         self.assertEqual(self.call("/api/settings", {"show_price": "yes"})[0], 400)
         self.assertEqual(self.call("/api/settings", {"show_price": False}, token=False)[0], 403)
 
+    def test_choose_voice(self):
+        (self.root / "brand.json").write_text('{"handle": "@kenh"}', encoding="utf-8")
+        code, body = self.call("/api/voice", {"provider": "edge", "edge_voice": "vi-VN-NamMinhNeural",
+                                              "edge_rate": "+15%", "edge_pitch": "-4Hz"})
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)["settings"]["VOICE_LABEL"], "Edge · Nam Minh · nam · +15% · -4Hz")
+        code, _ = self.call("/api/voice", {"provider": "fpt", "fpt_voice": "leminh"})
+        saved = json.loads((self.root / "brand.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["handle"], "@kenh")
+        self.assertEqual(saved["voice"]["provider"], "fpt")
+        self.assertEqual(saved["voice"]["edge_voice"], "vi-VN-NamMinhNeural")  # đổi nhà cung cấp vẫn nhớ giọng Edge
+        for bad in ({"provider": "silent"}, {"provider": "edge", "edge_voice": "x"},
+                    {"provider": "edge", "edge_voice": "vi-VN-HoaiMyNeural", "edge_rate": "nhanh"},
+                    {"provider": "elevenlabs", "elevenlabs_voice_id": "../../x"}, {"provider": "fpt", "fpt_voice": "ai"}):
+            self.assertEqual(self.call("/api/voice", bad)[0], 400, bad)
+        self.assertEqual(self.call("/api/voice", {"provider": "fpt", "fpt_voice": "banmai"}, token=False)[0], 403)
+
+    def test_voice_preview_is_cached(self):
+        def fake(text, dest, provider=None, voice=None):
+            Path(dest).write_bytes(b"RIFFwav")
+            return 1.0
+
+        body = {"provider": "edge", "edge_voice": "vi-VN-HoaiMyNeural", "edge_rate": "+8%", "edge_pitch": "+0Hz"}
+        with mock.patch.object(ui.tts, "synthesize", side_effect=fake) as synth:
+            code, first = self.call("/api/voice/preview", body)
+            _, second = self.call("/api/voice/preview", body)
+        self.assertEqual(code, 200)
+        self.assertEqual(synth.call_count, 1)  # nghe lại không tạo (không tốn ký tự) lần nữa
+        url = json.loads(first)["url"]
+        self.assertEqual(url, json.loads(second)["url"])
+        with urllib.request.urlopen(self.base + url, timeout=10) as r:
+            self.assertEqual((r.headers["Content-Type"], r.read()), ("audio/wav", b"RIFFwav"))
+        self.assertEqual(list((self.root / "output" / "_nghe-thu").glob("*.tmp.wav")), [])
+        self.assertNotIn("_nghe-thu", [p["slug"] for p in json.loads(self.call("/api/state")[1])["products"]])
+        with mock.patch.object(ui.tts, "synthesize", side_effect=ui.tts.TTSError("Thiếu FPT_API_KEY trong .env")):
+            code, body = self.call("/api/voice/preview", {"provider": "fpt", "fpt_voice": "banmai"})
+        self.assertEqual((code, json.loads(body)["error"]), (400, "Thiếu FPT_API_KEY trong .env"))
+
+    def test_voice_lists_without_elevenlabs(self):
+        ui._el_cache.update(at=0.0, voices=None, error=None)
+        with mock.patch.object(ui.tts, "elevenlabs_voices", side_effect=ui.tts.TTSError("Chưa có ELEVENLABS_API_KEY")):
+            code, body = self.call("/api/voices")
+        data = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertIn({"id": "vi-VN-HoaiMyNeural", "name": "Hoài My · nữ", "group": "vi"}, data["edge"])
+        self.assertEqual(len(data["fpt"]), 9)
+        self.assertIsNone(data["elevenlabs"])
+        self.assertEqual(data["elevenlabs_error"], "Chưa có ELEVENLABS_API_KEY")
+        ui._el_cache.update(at=0.0)
+
     def test_media_blocks_path_traversal(self):
         out = self.root / "output" / "sp" / "facebook"
         out.mkdir(parents=True)

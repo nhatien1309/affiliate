@@ -9,6 +9,7 @@ Dán link, bấm nút thay cho gõ lệnh, xem log từng lệnh theo thời gia
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import queue
@@ -26,8 +27,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import queue_store
-from .config import OUTPUT_DIR, ROOT, WORK_DIR, brand, update_brand
+from . import queue_store, tts
+from .config import OUTPUT_DIR, ROOT, WORK_DIR, brand, reload_env, update_brand
 
 try:
     from dotenv import dotenv_values
@@ -44,6 +45,11 @@ TASK_NAME = "Affiliate agent"  # tác vụ Task Scheduler (README mục 4)
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
 ID_RE = re.compile(r"^[0-9a-f]{6}$")
 DAILY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\.log$")
+RATE_RE = re.compile(r"^[+-]\d{1,2}%$")
+PITCH_RE = re.compile(r"^[+-]\d{1,2}Hz$")
+EL_VOICE_RE = re.compile(r"^[A-Za-z0-9]{8,40}$")
+PREVIEW_DIR = "_nghe-thu"  # trong output/; bắt đầu bằng "_" nên không hiện thành sản phẩm
+PREVIEW_TEXT = "Chào anh em, đây là giọng đọc thử cho video của kênh. Nghe vậy có ổn không nè?"
 PLATFORMS = ("facebook", "tiktok")
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 DONE = ("xong", "loi", "da_dung")
@@ -57,7 +63,7 @@ CONTENT_TYPES = {
     ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
     ".txt": "text/plain; charset=utf-8", ".srt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8",
     ".mp4": "video/mp4", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-    ".webp": "image/webp", ".ttf": "font/ttf",
+    ".webp": "image/webp", ".ttf": "font/ttf", ".wav": "audio/wav", ".mp3": "audio/mpeg",
 }
 
 
@@ -286,6 +292,66 @@ def _choice(value, allowed: tuple, what: str) -> str:
     return value
 
 
+def _match(regex: re.Pattern, value, what: str) -> str:
+    value = str(value or "")
+    if not regex.match(value):
+        raise ValueError(f"{what} không hợp lệ: {value}")
+    return value
+
+
+def _voice(p: dict) -> dict:
+    """Giọng chọn trên trang → dict đã kiểm tra, để lưu vào brand.json hoặc nghe thử."""
+    provider = _choice(p.get("provider"), ("edge", "elevenlabs", "fpt"), "Nhà cung cấp giọng")
+    v = {"provider": provider}
+    if provider == "edge":
+        v["edge_voice"] = _choice(p.get("edge_voice"), tuple(c for c, _, _ in tts.EDGE_VOICES), "Giọng Edge")
+        v["edge_rate"] = _match(RATE_RE, p.get("edge_rate") or "+0%", "Tốc độ")
+        v["edge_pitch"] = _match(PITCH_RE, p.get("edge_pitch") or "+0Hz", "Cao độ")
+    elif provider == "elevenlabs":
+        v["elevenlabs_voice_id"] = _match(EL_VOICE_RE, p.get("elevenlabs_voice_id"), "Mã giọng ElevenLabs")
+        v["elevenlabs_voice_name"] = _one_line(p.get("elevenlabs_voice_name"), 60)
+    else:
+        v["fpt_voice"] = _choice(p.get("fpt_voice"), tuple(c for c, _ in tts.FPT_VOICES), "Giọng FPT")
+    return v
+
+
+def voice_preview(v: dict) -> str:
+    """Đọc câu mẫu bằng giọng v, trả về đường dẫn /media. Lưu theo mã băm: nghe lại không tốn thêm ký tự."""
+    folder = OUTPUT_DIR / PREVIEW_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    key = hashlib.sha1(json.dumps([v, PREVIEW_TEXT], sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    dest = folder / f"{key}.wav"
+    if not dest.exists():
+        tmp = folder / f"{key}-{secrets.token_hex(3)}.tmp.wav"  # bấm hai lần liền không ghi đè nhau
+        try:
+            tts.synthesize(PREVIEW_TEXT, tmp, voice=v)
+            tmp.replace(dest)
+        finally:
+            tmp.unlink(missing_ok=True)
+    return _media("output", PREVIEW_DIR, dest.name)
+
+
+_el_cache: dict = {"at": 0.0, "voices": None, "error": None}
+
+
+def voice_lists(refresh: bool = False) -> dict:
+    """Danh sách giọng cho menu. Giọng ElevenLabs lấy từ tài khoản, nhớ 10 phút."""
+    reload_env()
+    keys = {"elevenlabs": bool(os.getenv("ELEVENLABS_API_KEY")), "fpt": bool(os.getenv("FPT_API_KEY"))}
+    if refresh or time.time() - _el_cache["at"] > 600:
+        try:
+            _el_cache.update(voices=tts.elevenlabs_voices(), error=None)
+        except (tts.TTSError, OSError) as e:  # OSError gồm cả lỗi mạng của requests
+            _el_cache.update(voices=None, error=str(e))
+        _el_cache["at"] = time.time()
+    return {
+        "edge": [{"id": c, "name": n, "group": g} for c, n, g in tts.EDGE_VOICES],
+        "fpt": [{"id": c, "name": n} for c, n in tts.FPT_VOICES],
+        "elevenlabs": _el_cache["voices"], "elevenlabs_error": _el_cache["error"],
+        "keys": keys, "preview_text": PREVIEW_TEXT,
+    }
+
+
 def _slug(params: dict) -> str:
     slug = str(params.get("slug") or "")
     if not SLUG_RE.match(slug) or not ((WORK_DIR / slug).is_dir() or (OUTPUT_DIR / slug).is_dir()):
@@ -345,6 +411,9 @@ def _settings() -> dict:
     vals = {k: (v or "").strip() for k, v in dotenv_values(ROOT / ".env").items()}
     out = {k: vals.get(k) or default for k, default in SETTINGS.items()}
     out["SHOW_PRICE"] = brand().get("show_price") is True
+    voice = tts.voice_settings()
+    out["VOICE"] = voice
+    out["VOICE_LABEL"] = tts.describe(voice)
     out["SHOPEE_API"] = bool(vals.get("SHOPEE_APP_ID") and vals.get("SHOPEE_SECRET"))
     out["CLAUDE_CLI"] = bool(shutil.which("claude"))
     out["CLAUDE_TRUSTED"] = _claude_trusted()
@@ -590,6 +659,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"settings": _settings(), "schedule": self.schedule.get(), "queue": rows,
                                    "products": _products(rows), "jobs": self.runner.summaries(),
                                    "daily_logs": _daily_logs()})
+            if parts == ["api", "voices"]:
+                return self._json(voice_lists(refresh="refresh" in parse_qs(url.query)))
             if head == "api" and len(parts) == 3 and parts[1] == "jobs":
                 job = self.runner.get(parts[2])
                 if not job:
@@ -633,6 +704,18 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("show_price phải là true hoặc false")
                 update_brand(show_price=body["show_price"])
                 return self._json({"settings": _settings()})
+            if parts == ["api", "voice"]:  # lưu vào brand.json, giữ lựa chọn cũ của các nhà cung cấp khác
+                update_brand(voice={**(brand().get("voice") or {}), **_voice(body)})
+                return self._json({"settings": _settings()})
+            if parts == ["api", "voice", "preview"]:
+                v = _voice(body)
+                reload_env()
+                try:
+                    return self._json({"url": voice_preview(v)})
+                except tts.TTSError as e:
+                    return self._error(400, str(e))
+                except Exception as e:  # noqa: BLE001 — lỗi mạng, ffmpeg...: báo lên trang thay vì làm rớt kết nối
+                    return self._error(502, f"Không tạo được giọng đọc thử: {e}")
             if parts == ["api", "run"]:
                 job = self.runner.submit(*build_job(body.get("action"), body))
                 return self._json({"job": job.summary(self.runner.position(job))})

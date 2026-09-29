@@ -23,6 +23,11 @@ QUEUE_FILE = ROOT / "queue.csv"
 BRAND_FILE = ROOT / "brand" / "brand.json"
 
 
+def reload_env() -> None:
+    """Đọc lại .env: giao diện chạy lâu, chủ dự án có thể vừa thêm khóa API."""
+    load_dotenv(ROOT / ".env", override=True)
+
+
 def env(name: str, default: str | None = None) -> str | None:
     value = os.getenv(name, default)
     if value is not None:

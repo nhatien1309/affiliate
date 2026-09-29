@@ -315,7 +315,7 @@ def render(slug: str, platform: str, provider: str | None = None, engine: str | 
                      for s in price_mentions([script.get("hook") or "", *lines])]
 
     meta = {"slug": slug, "platform": platform, "seconds": round(t, 1), "scenes": len(lines),
-            "music": music.name if music else None, "tts": provider or "mặc định trong .env",
+            "music": music.name if music else None, "tts": tts.describe(tts.voice_settings(), provider),
             "engine": engine, "show_price": show_price,
             "warnings": warnings}
     (out_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -58,6 +58,34 @@
       </div>
     </section>
 
+    <section class="card" id="voice-card">
+      <div class="card-head">
+        <h2>Giọng đọc</h2>
+        <span id="voice-now" class="small muted"></span>
+      </div>
+      <form id="voice-form" class="voice-form" autocomplete="off">
+        <div class="row">
+          <select name="provider" aria-label="Nhà cung cấp giọng">
+            <option value="edge">Edge (miễn phí)</option>
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="fpt">FPT.AI</option>
+          </select>
+          <select name="voice" aria-label="Giọng"><option value="">Đang tải danh sách giọng…</option></select>
+        </div>
+        <div class="row" id="voice-edge">
+          <label>Tốc độ <select name="edge_rate"></select></label>
+          <label>Cao độ <select name="edge_pitch"></select></label>
+        </div>
+        <div class="row">
+          <button type="button" class="btn" data-act="voice-preview">Nghe thử</button>
+          <button type="submit" class="btn primary">Dùng giọng này</button>
+          <button type="button" class="btn ghost sm" data-act="voice-reload" title="Tải lại danh sách giọng ElevenLabs">Tải lại danh sách</button>
+        </div>
+        <audio id="voice-audio" controls preload="none" hidden></audio>
+        <p id="voice-hint" class="hint"></p>
+      </form>
+    </section>
+
     <section class="card">
       <div class="card-head">
         <h2>Hàng đợi</h2>
